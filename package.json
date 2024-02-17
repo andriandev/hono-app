@@ -1,0 +1,19 @@
+{
+  "name": "hono-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index",
+    "dev": "nodemon index"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.8.0",
+    "dotenv": "^16.4.4",
+    "hono": "^4.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
