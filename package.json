@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index",
-    "dev": "nodemon index"
+    "dev": "nodemon index",
+    "deploy": "wrangler deploy index.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.8.0",
