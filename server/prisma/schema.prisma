@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique @db.VarChar(100)
+  password   String   @db.VarChar(255)
+  role       Role     @default(member)
+  is_active  Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  auth  Auth[]
+  links Link[]
+
+  @@map("tb_users")
+}
+
+enum Role {
+  admin
+  member
+  banned
+}
+
+model Auth {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  ip_address  String?  @db.VarChar(100)
+  user_agent  String?  @db.VarChar(200)
+  device_type String?  @db.VarChar(100)
+  login_at    DateTime @default(now())
+  is_active   Boolean  @default(true)
+  token       String   @db.VarChar(300)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("tb_auth")
+}
+
+model Link {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  alias       String?  @db.VarChar(60)
+  destination String   @db.VarChar(350)
+  view        Int      @default(0)
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("tb_links")
+}

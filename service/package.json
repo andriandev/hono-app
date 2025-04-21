@@ -1,0 +1,20 @@
+{
+  "name": "hono-shortlink-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun run --hot index.ts",
+    "build": "bun build index.ts --target=bun --outfile=server.js"
+  },
+  "dependencies": {
+    "hono": "^4.7.7",
+    "node-cache": "^5.1.2",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
