@@ -72,7 +72,7 @@ export async function GetUser(c: Context) {
 export async function CreateUser(c: Context) {
   let request = await c.req.json();
 
-  request = UserValidation.UPDATE.parse(request);
+  request = UserValidation.CREATE.parse(request);
 
   const checkUsername = await prismaClient.user.findFirst({
     where: {
