@@ -1,7 +1,4 @@
 export const APP_SECRET_KEY = process.env.APP_SECRET_KEY;
-export const APP_JWT_EXP: number =
-  Number(process.env.APP_SECRET_KEY) ||
-  Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 60 * 60 * 24 * 30 = 30 days
-export const APP_JWT_SECRET: string =
-  process.env.APP_JWT_SECRET ||
-  'IUSYhgfshGS76328JHGxhdsbnKSBHCBbewio4387GSJCGkjhd';
+export const APP_JWT_SECRET: string = process.env.APP_JWT_SECRET || '123456';
+export const APP_AUTH_URL = process.env.APP_AUTH_URL;
+export const APP_HASH_ID = process.env.APP_HASH_ID;

@@ -1,16 +1,39 @@
+import { describe, it, expect, beforeAll } from 'bun:test';
+import { Hono } from 'hono';
 import { Context } from 'hono';
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { prismaClient } from '@app/config/database';
-import bcrypt from 'bcryptjs';
+import { HTTPException } from 'hono/http-exception';
+import { ZodError } from 'zod';
 import { sign } from 'hono/jwt';
-import { app } from '../index';
-import {
-  APP_JWT_EXP,
-  APP_JWT_SECRET,
-  APP_SECRET_KEY,
-} from '@app/config/setting';
-import { is_admin, is_admin_or_key, is_login } from '@app/middleware/auth';
+import { resJSON, formatZodErrors } from '@app/helpers/function';
+import { is_login, is_admin } from '@app/middleware/auth';
+import { APP_HASH_ID, APP_JWT_SECRET } from '@app/config/setting';
 
+const app = new Hono();
+
+// Custom Not Found
+app.notFound((c: Context) => {
+  const resData = resJSON({ statusCode: 404, message: 'Page not found' });
+  return c.json(resData, resData.status as 404);
+});
+
+// Error Handling
+app.onError(async (err, c: Context) => {
+  const resData = resJSON({
+    statusCode: 500,
+    message: err?.message,
+  });
+
+  if (err instanceof HTTPException) {
+    resData.status = err?.status;
+  } else if (err instanceof ZodError) {
+    resData.status = 400;
+    resData.message = formatZodErrors(err?.errors);
+  }
+
+  return c.json(resData, resData.status as 500);
+});
+
+// Routes
 app.get('/auth/test-middleware-is-login', is_login, (c: Context) => {
   return c.json({ message: 'Middleware passed', user: c.get('userData') });
 });
@@ -19,68 +42,52 @@ app.get('/auth/test-middleware-is-admin', is_admin, (c: Context) => {
   return c.json({ message: 'Middleware passed', user: c.get('userData') });
 });
 
-app.get(
-  '/auth/test-middleware-is-admin-or-key',
-  is_admin_or_key,
-  (c: Context) => {
-    return c.json({ message: 'Middleware passed', user: c.get('userData') });
-  }
-);
-
 describe('Middleware is_login', () => {
   const username = 'user_test_middleware_is_login';
-  const password = 'pass_test_middleware_is_login';
   let token: string;
-  let userId: number;
+  let bannedToken: string;
+  let inactiveToken: string;
+  let wrongAppToken: string;
 
   beforeAll(async () => {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await prismaClient.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role: 'member',
-        is_active: true,
-      },
-    });
-    userId = user.id;
+    const basePayload = {
+      id: 1,
+      username,
+      role: 'member',
+      app_id: APP_HASH_ID,
+      is_active: true,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
+    };
 
-    token = await sign(
+    token = await sign(basePayload, APP_JWT_SECRET, 'HS256');
+
+    bannedToken = await sign(
       {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        is_active: user.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
+        ...basePayload,
+        role: 'banned',
       },
       APP_JWT_SECRET,
       'HS256'
     );
 
-    await prismaClient.auth.create({
-      data: {
-        user_id: user.id,
-        token,
-        ip_address: '127.0.0.1',
-        user_agent: 'test-agent',
-        device_type: 'test-device',
+    inactiveToken = await sign(
+      {
+        ...basePayload,
+        is_active: false,
       },
-    });
-  });
+      APP_JWT_SECRET,
+      'HS256'
+    );
 
-  afterAll(async () => {
-    await prismaClient.user.deleteMany({
-      where: {
-        username: {
-          in: [
-            username,
-            'user_test_user_not_found_is_login',
-            'user_test_token_no_active_is_login',
-          ],
-        },
+    wrongAppToken = await sign(
+      {
+        ...basePayload,
+        app_id: 'WRONG_APP_ID',
       },
-    });
+      APP_JWT_SECRET,
+      'HS256'
+    );
   });
 
   it('should pass middleware and return user data', async () => {
@@ -96,7 +103,7 @@ describe('Middleware is_login', () => {
     expect(data?.user?.username).toBe(username);
   });
 
-  it('should fail if token is missing', async () => {
+  it('should fail when token is missing', async () => {
     const res = await app.request('/auth/test-middleware-is-login', {
       method: 'GET',
     });
@@ -104,188 +111,108 @@ describe('Middleware is_login', () => {
     const data = await res.json();
 
     expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid token');
+    expect(data?.message).toBe('Invalid token');
   });
 
-  it('should fail if token is invalid', async () => {
+  it('should fail when user is banned', async () => {
     const res = await app.request('/auth/test-middleware-is-login', {
       method: 'GET',
-      headers: { Authorization: 'Bearer wrongtoken' },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid JWT token');
-  });
-
-  it('should fail if user not found', async () => {
-    const tokenTest = await sign(
-      {
-        id: 999999999999,
-        username: 'user_test_user_not_found_is_login',
-        role: 'member',
-        is_active: true,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    const res = await app.request('/auth/test-middleware-is-login', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${tokenTest}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('User not found');
-  });
-
-  it('should fail if token is no longer active', async () => {
-    const userTokenNoActive = await prismaClient.user.create({
-      data: {
-        username: 'user_test_token_no_active_is_login',
-        password: await bcrypt.hash(password, 10),
-        role: 'member',
-        is_active: true,
-      },
-    });
-
-    const newToken = await sign(
-      {
-        id: userTokenNoActive.id,
-        username: userTokenNoActive.username,
-        role: userTokenNoActive.role,
-        is_active: userTokenNoActive.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    await prismaClient.auth.create({
-      data: {
-        user_id: userTokenNoActive.id,
-        is_active: false,
-        token: newToken,
-      },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-login', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${newToken}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Token is no longer active');
-  });
-
-  it('should fail if user is banned', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'banned' },
-    });
-
-    await prismaClient.auth.updateMany({
-      where: { token },
-      data: { is_active: true },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-login', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${bannedToken}` },
     });
 
     const data = await res.json();
 
     expect(res.status).toBe(403);
-    expect(data.message).toBe('User already banned');
+    expect(data?.message).toBe('User already banned');
   });
 
-  it('should fail if user is not active', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'member', is_active: false },
-    });
-
+  it('should fail when user is not active', async () => {
     const res = await app.request('/auth/test-middleware-is-login', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${inactiveToken}` },
     });
 
     const data = await res.json();
 
     expect(res.status).toBe(401);
-    expect(data.message).toBe('User not active');
+    expect(data?.message).toBe('User not active');
+  });
+
+  it('should fail when app_id is wrong', async () => {
+    const res = await app.request('/auth/test-middleware-is-login', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${wrongAppToken}` },
+    });
+
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data?.message).toBe('Access denied, invalid app_id');
   });
 });
 
 describe('Middleware is_admin', () => {
   const username = 'user_test_middleware_is_admin';
-  const password = 'pass_test_middleware_is_admin';
-  let token: string;
-  let userId: number;
+  let adminToken: string;
+  let memberToken: string;
+  let bannedToken: string;
+  let inactiveToken: string;
+  let wrongAppToken: string;
 
   beforeAll(async () => {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await prismaClient.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role: 'admin',
-        is_active: true,
-      },
-    });
-    userId = user.id;
+    const basePayload = {
+      id: 2,
+      username,
+      role: 'admin',
+      app_id: APP_HASH_ID,
+      is_active: true,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
+    };
 
-    token = await sign(
+    adminToken = await sign(basePayload, APP_JWT_SECRET, 'HS256');
+
+    memberToken = await sign(
       {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        is_active: user.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
+        ...basePayload,
+        role: 'member',
       },
       APP_JWT_SECRET,
       'HS256'
     );
 
-    await prismaClient.auth.create({
-      data: {
-        user_id: user.id,
-        token,
-        ip_address: '127.0.0.1',
-        user_agent: 'test-agent',
-        device_type: 'test-device',
+    bannedToken = await sign(
+      {
+        ...basePayload,
+        role: 'banned',
       },
-    });
+      APP_JWT_SECRET,
+      'HS256'
+    );
+
+    inactiveToken = await sign(
+      {
+        ...basePayload,
+        is_active: false,
+      },
+      APP_JWT_SECRET,
+      'HS256'
+    );
+
+    wrongAppToken = await sign(
+      {
+        ...basePayload,
+        app_id: 'WRONG_APP_ID',
+      },
+      APP_JWT_SECRET,
+      'HS256'
+    );
   });
 
-  afterAll(async () => {
-    await prismaClient.user.deleteMany({
-      where: {
-        username: {
-          in: [
-            username,
-            'user_test_user_not_found_is_admin',
-            'user_test_token_no_active_is_admin',
-          ],
-        },
-      },
-    });
-  });
-
-  it('should pass middleware and return user data', async () => {
+  it('should pass admin middleware for admin user', async () => {
     const res = await app.request('/auth/test-middleware-is-admin', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${adminToken}` },
     });
 
     const data = await res.json();
@@ -295,7 +222,7 @@ describe('Middleware is_admin', () => {
     expect(data?.user?.username).toBe(username);
   });
 
-  it('should fail if token is missing', async () => {
+  it('should fail when token is missing', async () => {
     const res = await app.request('/auth/test-middleware-is-admin', {
       method: 'GET',
     });
@@ -303,369 +230,54 @@ describe('Middleware is_admin', () => {
     const data = await res.json();
 
     expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid token');
+    expect(data?.message).toBe('Invalid token');
   });
 
-  it('should fail if token is invalid', async () => {
+  it('should fail for non-admin user', async () => {
     const res = await app.request('/auth/test-middleware-is-admin', {
       method: 'GET',
-      headers: { Authorization: 'Bearer wrongtoken' },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid JWT token');
-  });
-
-  it('should fail if user not found', async () => {
-    const tokenTest = await sign(
-      {
-        id: 999999999999,
-        username: 'user_test_user_not_found_is_admin',
-        role: 'member',
-        is_active: true,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    const res = await app.request('/auth/test-middleware-is-admin', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${tokenTest}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('User not found');
-  });
-
-  it('should fail if token is no longer active', async () => {
-    const userTokenNoActive = await prismaClient.user.create({
-      data: {
-        username: 'user_test_token_no_active_is_admin',
-        password: await bcrypt.hash(password, 10),
-        role: 'admin',
-        is_active: true,
-      },
-    });
-
-    const newToken = await sign(
-      {
-        id: userTokenNoActive.id,
-        username: userTokenNoActive.username,
-        role: userTokenNoActive.role,
-        is_active: userTokenNoActive.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    await prismaClient.auth.create({
-      data: {
-        user_id: userTokenNoActive.id,
-        is_active: false,
-        token: newToken,
-      },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${newToken}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Token is no longer active');
-  });
-
-  it('should fail if user is banned', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'banned' },
-    });
-
-    await prismaClient.auth.updateMany({
-      where: { token },
-      data: { is_active: true },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${memberToken}` },
     });
 
     const data = await res.json();
 
     expect(res.status).toBe(403);
-    expect(data.message).toBe('User already banned');
+    expect(data?.message).toBe('Only admin can access this endpoint');
   });
 
-  it('should fail if user is not active', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'member', is_active: false },
-    });
-
+  it('should fail when user is banned', async () => {
     const res = await app.request('/auth/test-middleware-is-admin', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${bannedToken}` },
     });
 
     const data = await res.json();
 
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('User not active');
+    expect(res.status).toBe(403);
+    expect(data?.message).toBe('User already banned');
   });
 
-  it('should fail if user is role not admin', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'member', is_active: true },
-    });
-
+  it('should fail when user is not active', async () => {
     const res = await app.request('/auth/test-middleware-is-admin', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${inactiveToken}` },
+    });
+
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data?.message).toBe('User not active');
+  });
+
+  it('should fail when app_id is wrong', async () => {
+    const res = await app.request('/auth/test-middleware-is-admin', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${wrongAppToken}` },
     });
 
     const data = await res.json();
 
     expect(res.status).toBe(403);
-    expect(data.message).toBe('Only admin can access this endpoint');
-  });
-});
-
-describe('Middleware is_admin_or_key', () => {
-  const username = 'user_test_middleware_is_admin_or_key';
-  const password = 'pass_test_middleware_is_admin_or_key';
-  let token: string;
-  let userId: number;
-
-  beforeAll(async () => {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await prismaClient.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role: 'admin',
-        is_active: true,
-      },
-    });
-    userId = user.id;
-
-    token = await sign(
-      {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        is_active: user.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    await prismaClient.auth.create({
-      data: {
-        user_id: user.id,
-        token,
-        ip_address: '127.0.0.1',
-        user_agent: 'test-agent',
-        device_type: 'test-device',
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prismaClient.user.deleteMany({
-      where: {
-        username: {
-          in: [
-            username,
-            'user_test_user_not_found_is_admin_or_key',
-            'user_test_token_no_active_is_admin_or_key',
-          ],
-        },
-      },
-    });
-  });
-
-  it('should pass middleware with key', async () => {
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: APP_SECRET_KEY },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(data?.message).toBe('Middleware passed');
-  });
-
-  it('should pass middleware and return user data with token', async () => {
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(data?.message).toBe('Middleware passed');
-    expect(data?.user?.username).toBe(username);
-  });
-
-  it('should fail if token is missing', async () => {
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid token');
-  });
-
-  it('should fail if token is invalid', async () => {
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: 'Bearer wrongtoken' },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Invalid JWT token');
-  });
-
-  it('should fail if user not found', async () => {
-    const tokenTest = await sign(
-      {
-        id: 999999999999,
-        username: 'user_test_user_not_found_is_admin_or_key',
-        role: 'member',
-        is_active: true,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${tokenTest}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('User not found');
-  });
-
-  it('should fail if token is no longer active', async () => {
-    const userTokenNoActive = await prismaClient.user.create({
-      data: {
-        username: 'user_test_token_no_active_is_admin_or_key',
-        password: await bcrypt.hash(password, 10),
-        role: 'admin',
-        is_active: true,
-      },
-    });
-
-    const newToken = await sign(
-      {
-        id: userTokenNoActive.id,
-        username: userTokenNoActive.username,
-        role: userTokenNoActive.role,
-        is_active: userTokenNoActive.is_active,
-        iat: Math.floor(Date.now() / 1000),
-        exp: APP_JWT_EXP,
-      },
-      APP_JWT_SECRET,
-      'HS256'
-    );
-
-    await prismaClient.auth.create({
-      data: {
-        user_id: userTokenNoActive.id,
-        is_active: false,
-        token: newToken,
-      },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${newToken}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('Token is no longer active');
-  });
-
-  it('should fail if user is banned', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'banned' },
-    });
-
-    await prismaClient.auth.updateMany({
-      where: { token },
-      data: { is_active: true },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(data.message).toBe('User already banned');
-  });
-
-  it('should fail if user is not active', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'member', is_active: false },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data.message).toBe('User not active');
-  });
-
-  it('should fail if user is role not admin', async () => {
-    await prismaClient.user.update({
-      where: { id: userId },
-      data: { role: 'member', is_active: true },
-    });
-
-    const res = await app.request('/auth/test-middleware-is-admin-or-key', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(data.message).toBe('Only admin can access this endpoint');
+    expect(data?.message).toBe('Access denied, invalid app_id');
   });
 });

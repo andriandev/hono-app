@@ -1,12 +1,20 @@
 -- CreateTable
+CREATE TABLE `tb_users` (
+    `id` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `tb_links` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `user_id` INTEGER NOT NULL,
-    `alias` VARCHAR(12) NOT NULL,
+    `alias` VARCHAR(60) NULL,
     `destination` VARCHAR(350) NOT NULL,
     `view` INTEGER NOT NULL DEFAULT 0,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `tb_links_alias_key`(`alias`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
