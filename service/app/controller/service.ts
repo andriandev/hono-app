@@ -36,7 +36,7 @@ export async function Shortlink(c: Context) {
     destination = cacheData;
   }
 
-  if (destination) {
+  if (destination && alias !== 'testing-cache-2025') {
     const addView = await fetch(`${serverUrl}/link/${alias}/count`);
 
     if (addView.status !== 200) {

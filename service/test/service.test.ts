@@ -16,17 +16,17 @@ describe('GET /:alias', () => {
   });
 
   it('should render shortlink page and cache if alias valid', async () => {
-    // Pastikan alias `testing` tersedia di backend dan mengarah ke URL nyata
-    const res = await app.request('/testing');
+    // Pastikan alias `Ql9y` tersedia di backend dan mengarah ke URL nyata
+    const res = await app.request('/Ql9y');
     const html = await res.text();
 
     expect(res.status).toBe(200);
     expect(html).toContain('https://'); // atau konten khas ShortlinkPage
-    expect(cache.get('alias:testing')).toBeDefined();
+    expect(cache.get('alias:Ql9y')).toBeDefined();
   });
 
   it('should use cache if alias already cached', async () => {
-    cache.set('alias:testing-cache', 'https://cached.com');
+    cache.set('alias:testing-cache-2025', 'https://cached.com');
 
     const res = await app.request('/testing-cache');
     const html = await res.text();

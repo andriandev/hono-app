@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import { Hono } from 'hono';
-import { etag } from 'hono/etag';
+// import { etag } from 'hono/etag';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 
@@ -18,7 +18,7 @@ app.use(
 app.use('*', cors());
 
 // Cache code
-app.use('*', etag());
+// app.use('*', etag());
 
 app.use('*', async (c: Context, next) => {
   // X-Response-Time header
