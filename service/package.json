@@ -10,7 +10,7 @@
     "build": "bun build index.ts --target=bun --outfile=server.js"
   },
   "dependencies": {
-    "hono": "^4.7.7",
+    "hono": "^4.7.8",
     "node-cache": "^5.1.2",
     "winston": "^3.17.0"
   },
