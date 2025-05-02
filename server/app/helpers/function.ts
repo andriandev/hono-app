@@ -1,5 +1,6 @@
 import type { ZodIssue } from 'zod';
 import type { ResJSONTypes } from '@helpers/types';
+import { hashIdPost } from '@helpers/hashids';
 
 export function resJSON<T = any>({
   statusCode = 200,
@@ -58,4 +59,13 @@ export function filterStringAlias(input: string): string {
 
 export function containsNonAlphanumeric(str: string): boolean {
   return /[^a-zA-Z0-9]/.test(str);
+}
+
+export function orderResponsePost(dataPost: any) {
+  const { id, ...rest } = dataPost;
+  return {
+    id,
+    hash_id: hashIdPost.encode(id),
+    ...rest,
+  };
 }

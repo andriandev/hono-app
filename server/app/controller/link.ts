@@ -75,7 +75,7 @@ export async function GetLink(c: Context) {
 }
 
 export async function CreateLink(c: Context) {
-  let request = await c.req.json();
+  let request = c.get('jsonData');
   const user = c.get('userData');
 
   request = LinkValidation.CREATE.parse(request);
@@ -134,7 +134,7 @@ export async function CreateLink(c: Context) {
 
 export async function UpdateLink(c: Context) {
   const alias: string = c.req.param('alias');
-  let request = await c.req.json();
+  let request = c.get('jsonData');
   const user = c.get('userData');
 
   request = LinkValidation.UPDATE.parse(request);

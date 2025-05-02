@@ -10,7 +10,13 @@ import {
   DeleteLink,
   CountLink,
 } from '@app/controller/link';
-('@app/controller/link');
+import {
+  GetPostByUser,
+  GetPost,
+  CreatePost,
+  UpdatePost,
+  DeletePost,
+} from '@app/controller/post';
 import { is_admin, is_login } from '@app/middleware/auth';
 import { check_json } from '@app/middleware/json';
 
@@ -30,5 +36,11 @@ app.post('/link', check_json, is_login, CreateLink);
 app.put('/link/:alias', check_json, is_login, UpdateLink);
 app.delete('/link/:alias', is_login, DeleteLink);
 app.get('/link/:alias/count', CountLink);
+
+app.get('/post/all', is_login, GetPostByUser);
+app.get('/post/:hashId', GetPost);
+app.post('/post', check_json, is_login, CreatePost);
+app.put('/post/:hashId', check_json, is_login, UpdatePost);
+app.delete('/post/:hashId', is_login, DeletePost);
 
 export default app;
