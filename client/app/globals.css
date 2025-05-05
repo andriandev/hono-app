@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+html {
+  font-family: var(--font-poppins);
+}
+
+header {
+  @apply flex justify-center py-5;
+}
+
+body {
+  @apply flex min-h-screen flex-col justify-between overflow-x-hidden bg-slate-900 px-3 text-slate-200 antialiased sm:px-12 md:px-20 lg:px-30;
+}
+
+footer {
+  @apply mt-auto flex justify-center pt-12 pb-5;
+}
+
+/* Scrollbar style */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb {
+  scrollbar-color: #94a3b8 transparent; /* thumb color and track */
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #94a3b8; /* slate-400 */
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
