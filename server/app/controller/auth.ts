@@ -13,7 +13,7 @@ export async function Login(c: Context) {
 
   const res = await fetch(`${APP_AUTH_URL}/auth/login`, {
     headers: {
-      'x-real-ip':
+      'x-real-ip-from-app':
         c.req.header('x-real-ip') || c.req.header('x-forwarded-for') || '',
       'user-agent': c.req.header('user-agent') || '',
     },
