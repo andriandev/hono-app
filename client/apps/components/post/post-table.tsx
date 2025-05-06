@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { formatDateTime, htmlToTextAreaContent } from "@/helpers/function";
+import { SITE_SERVICE_URL } from "@/config/setting";
+import {
+  formatDateTime,
+  htmlToTextAreaContent,
+  copyToClipboard,
+} from "@/helpers/function";
 import {
   fetchPostCreate,
   fetchPostDelete,
@@ -191,7 +196,18 @@ export default function TablePost({ data, onPostChange }: Props) {
                 className="border-t border-slate-700 hover:bg-slate-800"
                 key={post.id}
               >
-                <td className="px-4 py-2">{post.hash_id}</td>
+                <td className="px-4 py-2">
+                  <a
+                    className="text-indigo-500 hover:text-indigo-600"
+                    href={`${SITE_SERVICE_URL}/post/${post.hash_id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      copyToClipboard(e.currentTarget.href);
+                    }}
+                  >
+                    {post.hash_id}
+                  </a>
+                </td>
                 <td className="max-w-[25ch] truncate overflow-hidden px-4 py-2 md:max-w-[15ch]">
                   {post.title}
                 </td>

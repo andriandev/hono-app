@@ -1,3 +1,5 @@
+import { toast } from "@/components/shared/toast";
+
 export function formatDateTime(datetimeStr: string): string {
   const timezone: string =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta";
@@ -38,4 +40,21 @@ export function htmlToTextAreaContent(html: string): string {
   });
 
   return div.innerText.trim();
+}
+
+export function copyToClipboard(text: string) {
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      toast({
+        message: `Copy ${text}`,
+        type: `info`,
+      });
+    })
+    .catch((err) => {
+      toast({
+        message: `Failed ${err?.message}`,
+        type: `error`,
+      });
+    });
 }

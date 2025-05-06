@@ -18,7 +18,7 @@ export function LinkList() {
   useEffect(() => {
     try {
       const token = localStorage.getItem("token") || "";
-      const limit = 5;
+      const limit = 10;
       const offset = (currentPage - 1) * limit;
 
       if (!token) {

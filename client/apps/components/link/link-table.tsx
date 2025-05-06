@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { formatDateTime } from "@/helpers/function";
+import { SITE_SERVICE_URL } from "@/config/setting";
+import { formatDateTime, copyToClipboard } from "@/helpers/function";
 import {
   fetchLinkCreate,
   fetchLinkDelete,
@@ -181,7 +182,18 @@ export default function TableLink({ data, onLinkChange }: Props) {
                 className="border-t border-slate-700 hover:bg-slate-800"
                 key={link.id}
               >
-                <td className="px-4 py-2">{link.alias}</td>
+                <td className="px-4 py-2">
+                  <a
+                    className="text-indigo-500 hover:text-indigo-600"
+                    href={`${SITE_SERVICE_URL}/${link.alias}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      copyToClipboard(e.currentTarget.href);
+                    }}
+                  >
+                    {link.alias}
+                  </a>
+                </td>
                 <td className="max-w-[25ch] truncate overflow-hidden px-4 py-2 md:max-w-[15ch]">
                   {link.destination}
                 </td>
