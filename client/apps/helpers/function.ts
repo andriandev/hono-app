@@ -16,46 +16,26 @@ export function formatDateTime(datetimeStr: string): string {
 }
 
 export function parseContentToHTML(text: string): string {
-  if (text == "" || !text) {
-    return "";
-  }
+  if (!text.trim()) return "";
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text
-    .split(/\n\s*\n/)
-    .map((alinea) => {
-      const linkedText = alinea.replace(urlRegex, (url) => {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer nofollow">${url}</a>`;
-      });
-      return `<p>${linkedText.trim()}</p>`;
-    })
-    .join("");
+
+  const linkedText = text.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer nofollow">${url}</a>`;
+  });
+
+  return linkedText.trim().replace(/\n/g, "<br>");
 }
 
 export function htmlToTextAreaContent(html: string): string {
-  if (html == "" || !html) {
-    return "";
-  }
+  if (!html.trim()) return "";
 
   const div = document.createElement("div");
   div.innerHTML = html;
 
-  const paragraphs = Array.from(div.querySelectorAll("p"));
-  return paragraphs
-    .map((p) => {
-      const textWithLinks = Array.from(p.childNodes)
-        .map((node) => {
-          if (
-            node.nodeType === Node.ELEMENT_NODE &&
-            (node as HTMLElement).tagName === "A"
-          ) {
-            return (node as HTMLAnchorElement).href;
-          } else {
-            return node.textContent ?? "";
-          }
-        })
-        .join("");
-      return textWithLinks.trim();
-    })
-    .join("\n\n");
+  div.querySelectorAll("br").forEach((br) => {
+    br.replaceWith("\n");
+  });
+
+  return div.innerText.trim();
 }
