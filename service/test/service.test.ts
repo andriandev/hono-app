@@ -30,3 +30,29 @@ describe('GET /:alias', () => {
     expect(res.status).toBe(302);
   });
 });
+
+describe('GET /post/:hash_id', () => {
+  it('should render a published post page from external server', async () => {
+    const hashId = 'xvVw';
+
+    const response = await app.request(`/post/${hashId}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('should return 404 for unpublished', async () => {
+    const notPublish = 'Mkag';
+
+    const response = await app.request(`/post/${notPublish}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 for not exist', async () => {
+    const notExist = 'Mkag';
+
+    const response = await app.request(`/post/${notExist}`);
+
+    expect(response.status).toBe(404);
+  });
+});

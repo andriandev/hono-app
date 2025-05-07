@@ -93,12 +93,12 @@ export async function Post(c: Context) {
 
   if (!cacheData) {
     const response = await fetch(`${serverUrl}/post/${hashID}`);
+    const result = await response.json();
 
-    if (response.status === 400) {
+    if (result?.status === 400 || result?.data?.status !== 'publish') {
       return c.html(NotFoundPage(), 404);
     }
 
-    const result = await response.json();
     postData = result?.data;
 
     cache.set(`post:${hashID}`, result?.data, 86400);
