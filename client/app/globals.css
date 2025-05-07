@@ -37,3 +37,15 @@ footer {
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.modal {
+  height: 100vh;
+  height: 100dvh;
+}
+
+@media (width >= 48rem) {
+  .modal {
+    height: 93vh;
+    height: 93dvh;
+  }
+}

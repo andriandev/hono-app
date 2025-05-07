@@ -107,7 +107,7 @@ export default function Toast({
 
   return (
     <div
-      className={`fixed z-50 transition-all duration-500 ease-in-out ${basePos} ${
+      className={`fixed z-50 overflow-clip transition-all duration-500 ease-in-out ${basePos} ${
         visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
       }`}
     >

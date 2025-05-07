@@ -34,7 +34,7 @@ export default function Modal({
       }`}
     >
       <div
-        className={`relative mx-auto flex h-[100vh] w-full max-w-7xl transform flex-col overflow-hidden rounded-xl bg-slate-700 shadow-xl transition-all duration-500 md:h-[93vh] ${
+        className={`modal relative mx-auto flex w-full max-w-7xl transform flex-col overflow-hidden rounded-xl bg-slate-700 shadow-xl transition-all duration-500 ${
           isOpen
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-10 opacity-0"
