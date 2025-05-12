@@ -1,26 +1,22 @@
-import Link from "@/components/shared/link";
+import Navbar from "@/components/layout/navbar";
+
+export type NavLink = {
+  title: string;
+  link: string;
+};
 
 export default function Header() {
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { title: "Login", link: "/auth/login" },
     { title: "Link", link: "/link" },
     { title: "Post", link: "/post" },
     { title: "Parse", link: "/parse" },
+    { title: "Downloader", link: "/downloader" },
   ];
 
   return (
     <header>
-      <nav className="flex flex-row flex-wrap gap-5">
-        {navLinks.map((item) => (
-          <Link
-            key={item?.link}
-            className="text-sky-500 hover:text-sky-600"
-            href={item?.link}
-          >
-            {item?.title}
-          </Link>
-        ))}
-      </nav>
+      <Navbar data={navLinks} />
     </header>
   );
 }
